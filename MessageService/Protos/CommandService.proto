@@ -1,0 +1,133 @@
+syntax = "proto3";
+
+// option csharp_namespace = "CommandService";
+// option csharp_namespace = "MessageService";
+option csharp_namespace = "CommandService";
+option java_package = "xyz.yldk.grpc.command";
+option java_outer_classname = "CommandService";
+option java_multiple_files = true;
+option java_generate_equals_and_hash = true;
+
+package command;
+
+service CommandService {
+  rpc EmptyPacket (Empty) returns (Empty);
+  rpc Hello (HelloRequest) returns (HelloReply);
+  rpc KeepAlivePacket (KeepAlive) returns (KeepAlive);
+  rpc KeepAliveClientStream (stream KeepAlive) returns (Empty);
+  rpc KeepAliveServerStream (Empty) returns (stream KeepAlive);
+
+  rpc Command (CommandRequest) returns (CommandReply);
+  rpc DataCommand (DataCommandRequest) returns (DataCommandReply);
+
+  rpc MessagePacket (Message) returns (Result);
+  rpc DataMessagePacket (DataMessage) returns (Result);
+  rpc MessageStream (Empty) returns (stream Message);
+  rpc DataMessageStream (Empty) returns (stream DataMessage);
+
+  rpc Event (EventRequest) returns (Result);
+  rpc EventStream (Empty) returns (stream EventReply);
+  rpc Subscribe (SubscribeRequest) returns (SubscribeReply);
+}
+
+message Empty {
+
+}
+
+message Result {
+  int32 status = 1;
+  string message = 2;
+  repeated string arguments = 3;
+}
+
+message KeepAlive {
+  int64 random = 1;
+  int64 timestamp = 2;
+}
+
+message HelloRequest {
+  int64 random = 1;
+  int64 timestamp = 2;
+  int32 version = 3;
+  string update = 4;
+  string system = 5;
+  string application = 6;
+}
+
+message HelloReply {
+  int64 random = 1;
+  int64 timestamp = 2;
+  int32 version = 3;
+  string update = 4;
+  string namespace = 5;
+}
+
+message CommandRequest {
+  string command = 1;
+  repeated string arguments = 2;
+}
+
+message CommandReply {
+  int32 status = 1;
+  string message = 2;
+  repeated string arguments = 3;
+}
+
+message DataCommandRequest {
+  string command = 1;
+  repeated string arguments = 2;
+  repeated bytes data = 3;
+}
+
+message DataCommandReply {
+  int32 status = 1;
+  string message = 2;
+  repeated string arguments = 4;
+  repeated bytes data = 3;
+}
+
+// Client --> Server
+message EventRequest {
+  int32 topic = 1;
+  string channel = 2;
+  string event = 3;
+  repeated string arguments = 4;
+}
+
+// Server --> Client
+message EventReply {
+  int32 status = 1;
+  string message = 2;
+  int32 topic = 3;
+  string channel = 4;
+  string event = 5;
+  repeated string arguments = 6;
+}
+
+message SubscribeRequest {
+  int32 topic = 1;
+  string channel = 2;
+  string event = 3;
+  bool subscribe = 4;
+}
+
+message SubscribeReply {
+  int32 status = 1;
+  string message = 2;
+}
+
+message Message {
+  int32 topic = 1;
+  string channel = 2;
+  string message = 3;
+  repeated string arguments = 4;
+}
+
+message DataMessage {
+  int32 topic = 1;
+  string channel = 2;
+  string message = 3;
+  repeated string arguments = 4;
+  repeated bytes data = 5;
+}
+
