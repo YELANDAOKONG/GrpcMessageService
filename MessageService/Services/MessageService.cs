@@ -1,16 +1,20 @@
 using CommandService;
 using Grpc.Core;
 using MessageService;
+using MessageService.Utils;
+using Microsoft.Extensions.Options;
 
 namespace MessageService.Services;
 
 public class MessageService : CommandService.CommandService.CommandServiceBase
 {
     private readonly ILogger<MessageService> _logger;
+    private readonly Settings _appSettings;
 
-    public MessageService(ILogger<MessageService> logger)
+    public MessageService(ILogger<MessageService> logger, IOptionsMonitor<Settings> appSettings)
     {
         _logger = logger;
+        _appSettings = appSettings.CurrentValue;
     }
 
     // public override Task<HelloReply> SayHello(HelloRequest request, ServerCallContext context)
@@ -24,6 +28,18 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
     public override Task<Empty> EmptyPacket(Empty empty, ServerCallContext context)
     {
         return Task.FromResult(new Empty());
+    }
+
+    public override Task<HelloReply> Hello(HelloRequest request, ServerCallContext context)
+    {
+        HelloReply reply = new HelloReply();
+        // reply.Random = request.Random;
+        reply.Random = RandomUtils.GetRandomNumber();
+        reply.Timestamp = DateTime.UtcNow.Ticks;
+        reply.Version = Consts.Version;
+        reply.Update = Consts.Update;
+        reply.Namespace = _appSettings.ServerNameSpace;
+        return Task.FromResult(reply);
     }
 
     public override Task<KeepAlive> KeepAlivePacket(KeepAlive keepAlive, ServerCallContext context)
@@ -44,7 +60,7 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
         Random random = new Random();
         responseStream.WriteAsync( new KeepAlive
         {
-            Random = random.Next(0, 100000000),
+            Random = RandomUtils.GetRandomNumber(),
             Timestamp = DateTime.UtcNow.Ticks
         }
         );
