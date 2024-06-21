@@ -1,4 +1,7 @@
+using System.Collections.Concurrent;
+using System.Net;
 using CommandService;
+using Google.Protobuf.Collections;
 using Grpc.Core;
 using MessageService;
 using MessageService.Utils;
@@ -10,6 +13,9 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
 {
     private readonly ILogger<MessageService> _logger;
     private readonly Settings _appSettings;
+    
+    public ConcurrentQueue<Message> Messages = new ConcurrentQueue<Message>();
+    public ConcurrentQueue<DataMessage> DataMessages = new ConcurrentQueue<DataMessage>();
 
     public MessageService(ILogger<MessageService> logger, IOptionsMonitor<Settings> appSettings)
     {
@@ -65,6 +71,87 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
         }
         );
         return Task.CompletedTask;
+    }
+    
+    public override Task<CommandReply> Command(CommandRequest request, ServerCallContext context)
+    {
+        CommandReply reply = new CommandReply();
+        reply.Status = (int)HttpStatusCode.NoContent;
+        reply.Message = "ERROR";
+        return Task.FromResult(reply);
+    }
+
+    public override Task<DataCommandReply> DataCommand(DataCommandRequest request, ServerCallContext context)
+    {
+        DataCommandReply reply = new DataCommandReply();
+        reply.Status = (int)HttpStatusCode.NoContent;
+        reply.Message = "ERROR";
+        return Task.FromResult(reply);
+    }
+
+    public override Task<Result> MessagePacket(Message request, ServerCallContext context)
+    {
+        Messages.Enqueue(request);
+        Result result = new Result();
+        result.Status = (int)HttpStatusCode.OK;
+        result.Message = "RECEIVED";
+        return Task.FromResult(result);
+    }
+
+    public override Task<Result> DataMessagePacket(DataMessage request, ServerCallContext context)
+    {
+        DataMessages.Enqueue(request);
+        Result result = new Result();
+        result.Status = (int)HttpStatusCode.OK;
+        result.Message = "RECEIVED";
+        return Task.FromResult(result);
+    }
+
+    public override async Task MessageStream(Empty request, IServerStreamWriter<Message> responseStream, ServerCallContext context)
+    {
+        while (!context.CancellationToken.IsCancellationRequested)
+        {
+            Message? message;
+            if (Messages.TryDequeue(out message))
+            {
+                await responseStream.WriteAsync(message).ConfigureAwait(false);
+            }
+            else
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(100), context.CancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    public override async Task DataMessageStream(Empty request, IServerStreamWriter<DataMessage> responseStream, ServerCallContext context)
+    {
+        while (!context.CancellationToken.IsCancellationRequested)
+        {
+            DataMessage? dataMessage;
+            if (DataMessages.TryDequeue(out dataMessage))
+            {
+                await responseStream.WriteAsync(dataMessage).ConfigureAwait(false);
+            }
+            else
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(100), context.CancellationToken).ConfigureAwait(false);
+            }
+        }
+    }
+
+    public override Task<Result> Event(EventRequest request, ServerCallContext context)
+    {
+        return base.Event(request, context);
+    }
+
+    public override Task EventStream(Empty request, IServerStreamWriter<EventReply> responseStream, ServerCallContext context)
+    {
+        return base.EventStream(request, responseStream, context);
+    }
+
+    public override Task<SubscribeReply> Subscribe(SubscribeRequest request, ServerCallContext context)
+    {
+        return base.Subscribe(request, context);
     }
     
     
