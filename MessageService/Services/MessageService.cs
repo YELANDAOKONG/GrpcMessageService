@@ -141,16 +141,19 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
 
     public override Task<Result> Event(EventRequest request, ServerCallContext context)
     {
+        // Todo
         return base.Event(request, context);
     }
 
     public override Task EventStream(Empty request, IServerStreamWriter<EventReply> responseStream, ServerCallContext context)
     {
+        // Todo
         return base.EventStream(request, responseStream, context);
     }
 
     public override Task<SubscribeReply> Subscribe(SubscribeRequest request, ServerCallContext context)
     {
+        // Todo
         return base.Subscribe(request, context);
     }
     
