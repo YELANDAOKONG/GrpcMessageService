@@ -14,9 +14,9 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
     private readonly ILogger<MessageService> _logger;
     private readonly Settings _appSettings;
     
-    public ConcurrentDictionary<string, DateTime> AuthorizationTokens = new ConcurrentDictionary<string, DateTime>();
-    public ConcurrentQueue<Message> Messages = new ConcurrentQueue<Message>();
-    public ConcurrentQueue<DataMessage> DataMessages = new ConcurrentQueue<DataMessage>();
+    public static ConcurrentDictionary<string, DateTime> AuthorizationTokens = new ConcurrentDictionary<string, DateTime>();
+    public static ConcurrentQueue<Message> Messages = new ConcurrentQueue<Message>();
+    public static ConcurrentQueue<DataMessage> DataMessages = new ConcurrentQueue<DataMessage>();
 
     public MessageService(ILogger<MessageService> logger, IOptionsMonitor<Settings> appSettings)
     {
@@ -102,19 +102,26 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
 
     public override Task<Empty> KeepAliveClientStream(IAsyncStreamReader<KeepAlive> requestStream, ServerCallContext context)
     {
-        return  Task.FromResult(new Empty());
+        return Task.FromResult(new Empty());
     }
 
     public override Task KeepAliveServerStream(Empty request, IServerStreamWriter<KeepAlive> responseStream, ServerCallContext context)
     {
-        Random random = new Random();
-        responseStream.WriteAsync( new KeepAlive
+        try
         {
-            Random = RandomUtils.GetRandomNumber(),
-            Timestamp = TimeUtils.GetCurrentTimestampInMilliseconds()
+            Random random = new Random();
+            responseStream.WriteAsync(new KeepAlive
+                {
+                    Random = RandomUtils.GetRandomNumber(),
+                    Timestamp = TimeUtils.GetCurrentTimestampInMilliseconds()
+                }
+            );
+            return Task.CompletedTask;
         }
-        );
-        return Task.CompletedTask;
+        catch (TaskCanceledException ex)
+        {
+            return Task.CompletedTask;
+        }
     }
     
     public override Task<CommandReply> Command(CommandRequest request, ServerCallContext context)
@@ -177,6 +184,32 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
         reply.Status = (int)HttpStatusCode.NoContent;
         reply.Message = "ERROR";
         return Task.FromResult(reply);
+    }
+
+    public override Task CommandStream(IAsyncStreamReader<CommandRequest> requestStream, IServerStreamWriter<CommandReply> responseStream, ServerCallContext context)
+    {
+        // try
+        // {
+        //     
+        // }
+        // catch (TaskCanceledException ex)
+        // {
+        //     return;
+        // }
+        return base.CommandStream(requestStream, responseStream, context);
+    }
+
+    public override Task DataCommandStream(IAsyncStreamReader<DataCommandRequest> requestStream, IServerStreamWriter<DataCommandReply> responseStream, ServerCallContext context)
+    {
+        // try
+        // {
+        //     
+        // }
+        // catch (TaskCanceledException ex)
+        // {
+        //     return;
+        // }
+        return base.DataCommandStream(requestStream, responseStream, context);
     }
 
     public override Task<Result> MessagePacket(Message request, ServerCallContext context)
@@ -263,65 +296,83 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
 
     public override async Task MessageStream(Empty request, IServerStreamWriter<Message> responseStream, ServerCallContext context)
     {
-        if (!(_appSettings.ServerPassword == null || _appSettings.ServerPassword.Trim().Equals("")))
+        try
         {
-            var header = context.RequestHeaders.FirstOrDefault(h => h.Key.ToLower() == "Authorization".ToLower());
-            if (!context.RequestHeaders.Any(h => h.Key.ToLower() == "Authorization".ToLower()) || header == null)
+            if (!(_appSettings.ServerPassword == null || _appSettings.ServerPassword.Trim().Equals("")))
             {
-                return;
+                var header = context.RequestHeaders.FirstOrDefault(h => h.Key.ToLower() == "Authorization".ToLower());
+                if (!context.RequestHeaders.Any(h => h.Key.ToLower() == "Authorization".ToLower()) || header == null)
+                {
+                    return;
+                }
+
+                // if (!AuthorizationTokens.ContainsKey(header.Value)){return;}
+                if (!SignUtils.AuthorizationTokenSign(
+                        _appSettings.ServerPassword.Trim(),
+                        TimeUtils.GetCurrentTimestampInMilliseconds()
+                    ).Equals(header.Value))
+                {
+                    return;
+                }
             }
-            // if (!AuthorizationTokens.ContainsKey(header.Value)){return;}
-            if (!SignUtils.AuthorizationTokenSign(
-                    _appSettings.ServerPassword.Trim(),
-                    TimeUtils.GetCurrentTimestampInMilliseconds()
-                ).Equals(header.Value))
+
+            while (!context.CancellationToken.IsCancellationRequested)
             {
-                return;
+                Message? message;
+                if (Messages.TryDequeue(out message))
+                {
+                    await responseStream.WriteAsync(message).ConfigureAwait(false);
+                }
+                else
+                {
+                    await Task.Delay(TimeSpan.FromMilliseconds(100), context.CancellationToken).ConfigureAwait(false);
+                }
             }
         }
-        while (!context.CancellationToken.IsCancellationRequested)
+        catch (TaskCanceledException ex)
         {
-            Message? message;
-            if (Messages.TryDequeue(out message))
-            {
-                await responseStream.WriteAsync(message).ConfigureAwait(false);
-            }
-            else
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(100), context.CancellationToken).ConfigureAwait(false);
-            }
+            return;
         }
     }
 
     public override async Task DataMessageStream(Empty request, IServerStreamWriter<DataMessage> responseStream, ServerCallContext context)
     {
-        if (!(_appSettings.ServerPassword == null || _appSettings.ServerPassword.Trim().Equals("")))
+        try
         {
-            var header = context.RequestHeaders.FirstOrDefault(h => h.Key.ToLower() == "Authorization".ToLower());
-            if (!context.RequestHeaders.Any(h => h.Key.ToLower() == "Authorization".ToLower()) || header == null)
+            if (!(_appSettings.ServerPassword == null || _appSettings.ServerPassword.Trim().Equals("")))
             {
-                return;
-            }
-            // if (!AuthorizationTokens.ContainsKey(header.Value)){return;}
-            if (!SignUtils.AuthorizationTokenSign(
-                    _appSettings.ServerPassword.Trim(),
-                    TimeUtils.GetCurrentTimestampInMilliseconds()
+                var header = context.RequestHeaders.FirstOrDefault(h => h.Key.ToLower() == "Authorization".ToLower());
+                if (!context.RequestHeaders.Any(h => h.Key.ToLower() == "Authorization".ToLower()) || header == null)
+                {
+                    return;
+                }
+
+                // if (!AuthorizationTokens.ContainsKey(header.Value)){return;}
+                if (!SignUtils.AuthorizationTokenSign(
+                        _appSettings.ServerPassword.Trim(),
+                        TimeUtils.GetCurrentTimestampInMilliseconds()
                     ).Equals(header.Value))
+                {
+                    return;
+                }
+            }
+
+            while (!context.CancellationToken.IsCancellationRequested)
             {
-                return;
+                DataMessage? dataMessage;
+                if (DataMessages.TryDequeue(out dataMessage))
+                {
+                    await responseStream.WriteAsync(dataMessage).ConfigureAwait(false);
+                }
+                else
+                {
+                    await Task.Delay(TimeSpan.FromMilliseconds(100), context.CancellationToken).ConfigureAwait(false);
+                }
             }
         }
-        while (!context.CancellationToken.IsCancellationRequested)
+        catch (TaskCanceledException ex)
         {
-            DataMessage? dataMessage;
-            if (DataMessages.TryDequeue(out dataMessage))
-            {
-                await responseStream.WriteAsync(dataMessage).ConfigureAwait(false);
-            }
-            else
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(100), context.CancellationToken).ConfigureAwait(false);
-            }
+            return;
         }
     }
 
@@ -334,6 +385,14 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
     public override Task EventStream(Empty request, IServerStreamWriter<EventReply> responseStream, ServerCallContext context)
     {
         // Todo
+        // try
+        // {
+        //     
+        // }
+        // catch (TaskCanceledException ex)
+        // {
+        //     return base.EventStream(request, responseStream, context);
+        // }
         return base.EventStream(request, responseStream, context);
     }
 

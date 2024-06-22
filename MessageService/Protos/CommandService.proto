@@ -21,6 +21,9 @@ service CommandService {
   rpc Command (CommandRequest) returns (CommandReply);
   rpc DataCommand (DataCommandRequest) returns (DataCommandReply);
 
+  rpc CommandStream (stream CommandRequest) returns (stream CommandReply);
+  rpc DataCommandStream (stream DataCommandRequest) returns (stream DataCommandReply);
+
   rpc MessagePacket (Message) returns (Result);
   rpc DataMessagePacket (DataMessage) returns (Result);
   rpc MessageStream (Empty) returns (stream Message);
