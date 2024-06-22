@@ -14,6 +14,7 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
     private readonly ILogger<MessageService> _logger;
     private readonly Settings _appSettings;
     
+    public ConcurrentDictionary<string, DateTime> AuthorizationTokens = new ConcurrentDictionary<string, DateTime>();
     public ConcurrentQueue<Message> Messages = new ConcurrentQueue<Message>();
     public ConcurrentQueue<DataMessage> DataMessages = new ConcurrentQueue<DataMessage>();
 
@@ -41,10 +42,47 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
         HelloReply reply = new HelloReply();
         // reply.Random = request.Random;
         reply.Random = RandomUtils.GetRandomNumber();
-        reply.Timestamp = DateTime.UtcNow.Ticks;
+        reply.Timestamp = TimeUtils.GetCurrentTimestampInMilliseconds();
         reply.Version = Consts.Version;
         reply.Update = Consts.Update;
         reply.Namespace = _appSettings.ServerNameSpace;
+        return Task.FromResult(reply);
+    }
+
+    public override Task<AuthorizationReply> Authorization(AuthorizationRequest request, ServerCallContext context)
+    {
+        AuthorizationReply reply = new AuthorizationReply();
+        reply.Random = request.Random;
+        reply.Timestamp = TimeUtils.GetCurrentTimestampInMilliseconds();
+        if (_appSettings.ServerPassword.Trim().Equals(""))
+        {
+            reply.Status = (int)HttpStatusCode.Unused;
+            reply.Message = "This server does not require authentication";
+            return  Task.FromResult(reply);
+        }
+
+        string serverSign = SignUtils.AuthorizationPasswordSign(
+            _appSettings.ServerPassword,
+            TimeUtils.GetCurrentTimestampInMilliseconds()
+        );
+        if (!request.Password.Equals(serverSign))
+        {
+            reply.Status = (int)HttpStatusCode.Unauthorized;
+            reply.Message = "Password is incorrect";
+            return Task.FromResult(reply);
+        }
+
+        string randomToken = RandomUtils.RandomToken();
+        bool result = AuthorizationTokens.TryAdd(randomToken, DateTime.Now);
+        if (!result)
+        {
+            reply.Status = (int)HttpStatusCode.InternalServerError;
+            reply.Message = "Server error";
+            return Task.FromResult(reply);
+        }
+        reply.Status = (int)HttpStatusCode.OK;
+        reply.Arguments.Add(randomToken);
+        reply.Message = "Authorization successful";
         return Task.FromResult(reply);
     }
 
@@ -52,7 +90,7 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
     {
         KeepAlive keepAliveResponse = new KeepAlive();
         keepAliveResponse.Random = keepAlive.Random;
-        keepAliveResponse.Timestamp = DateTime.UtcNow.Ticks;
+        keepAliveResponse.Timestamp = TimeUtils.GetCurrentTimestampInMilliseconds();
         return Task.FromResult(keepAliveResponse);
     }
 
@@ -67,7 +105,7 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
         responseStream.WriteAsync( new KeepAlive
         {
             Random = RandomUtils.GetRandomNumber(),
-            Timestamp = DateTime.UtcNow.Ticks
+            Timestamp = TimeUtils.GetCurrentTimestampInMilliseconds()
         }
         );
         return Task.CompletedTask;

@@ -13,6 +13,7 @@ package command;
 service CommandService {
   rpc EmptyPacket (Empty) returns (Empty);
   rpc Hello (HelloRequest) returns (HelloReply);
+  rpc Authorization (AuthorizationRequest) returns (AuthorizationReply);
   rpc KeepAlivePacket (KeepAlive) returns (KeepAlive);
   rpc KeepAliveClientStream (stream KeepAlive) returns (Empty);
   rpc KeepAliveServerStream (Empty) returns (stream KeepAlive);
@@ -60,6 +61,20 @@ message HelloReply {
   int32 version = 3;
   int32 update = 4;
   string namespace = 5;
+}
+
+message AuthorizationRequest {
+  int64 random = 2;
+  int64 timestamp = 3;
+  string password = 4;
+}
+
+message AuthorizationReply {
+  int64 random = 1;
+  int64 timestamp = 2;
+  int32 status = 3;
+  string message = 4;
+  repeated string arguments = 5;
 }
 
 message CommandRequest {
