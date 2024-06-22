@@ -15,6 +15,8 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
     private readonly Settings _appSettings;
     
     public static ConcurrentDictionary<string, DateTime> AuthorizationTokens = new ConcurrentDictionary<string, DateTime>();
+    public static ConcurrentDictionary<Guid, IServerStreamWriter<Message>> ActiveMessagesStreams = new ConcurrentDictionary<Guid, IServerStreamWriter<Message>>();
+    public static ConcurrentDictionary<Guid, IServerStreamWriter<DataMessage>> ActiveDataMessagesStreams = new ConcurrentDictionary<Guid, IServerStreamWriter<DataMessage>>();
     public static ConcurrentQueue<Message> Messages = new ConcurrentQueue<Message>();
     public static ConcurrentQueue<DataMessage> DataMessages = new ConcurrentQueue<DataMessage>();
 
@@ -246,7 +248,19 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
                 });
             }
         }
-        Messages.Enqueue(request);
+        foreach (var stream in ActiveMessagesStreams)
+        {
+            try
+            {
+                // await
+                stream.Value.WriteAsync(request);
+            }
+            catch (Exception ex)
+            {
+                ActiveMessagesStreams.TryRemove(stream.Key, out _);
+            }
+        }
+        // Messages.Enqueue(request);
         Result result = new Result();
         result.Status = (int)HttpStatusCode.OK;
         result.Message = "RECEIVED";
@@ -287,7 +301,19 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
                 });
             }
         }
-        DataMessages.Enqueue(request);
+        foreach (var stream in ActiveDataMessagesStreams)
+        {
+            try
+            {
+                // await
+                stream.Value.WriteAsync(request);
+            }
+            catch (Exception ex)
+            {
+                ActiveDataMessagesStreams.TryRemove(stream.Key, out _);
+            }
+        }
+        // DataMessages.Enqueue(request);
         Result result = new Result();
         result.Status = (int)HttpStatusCode.OK;
         result.Message = "RECEIVED";
@@ -315,19 +341,36 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
                     return;
                 }
             }
-
-            while (!context.CancellationToken.IsCancellationRequested)
+            
+            Guid streamId = Guid.NewGuid();
+            ActiveMessagesStreams.TryAdd(streamId, responseStream);
+            try
             {
-                Message? message;
-                if (Messages.TryDequeue(out message))
-                {
-                    await responseStream.WriteAsync(message).ConfigureAwait(false);
-                }
-                else
+                while (!context.CancellationToken.IsCancellationRequested)
                 {
                     await Task.Delay(TimeSpan.FromMilliseconds(100), context.CancellationToken).ConfigureAwait(false);
                 }
             }
+            catch (RpcException ex) when (ex.StatusCode == StatusCode.Cancelled)
+            {
+                return;
+            }
+            finally
+            {
+                ActiveMessagesStreams.TryRemove(streamId, out _);
+            }
+            // while (!context.CancellationToken.IsCancellationRequested)
+            // {
+            //     Message? message;
+            //     if (Messages.TryDequeue(out message))
+            //     {
+            //         await responseStream.WriteAsync(message).ConfigureAwait(false);
+            //     }
+            //     else
+            //     {
+            //         await Task.Delay(TimeSpan.FromMilliseconds(100), context.CancellationToken).ConfigureAwait(false);
+            //     }
+            // }
         }
         catch (TaskCanceledException ex)
         {
@@ -356,19 +399,36 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
                     return;
                 }
             }
-
-            while (!context.CancellationToken.IsCancellationRequested)
+            
+            Guid streamId = Guid.NewGuid();
+            ActiveDataMessagesStreams.TryAdd(streamId, responseStream);
+            try
             {
-                DataMessage? dataMessage;
-                if (DataMessages.TryDequeue(out dataMessage))
-                {
-                    await responseStream.WriteAsync(dataMessage).ConfigureAwait(false);
-                }
-                else
+                while (!context.CancellationToken.IsCancellationRequested)
                 {
                     await Task.Delay(TimeSpan.FromMilliseconds(100), context.CancellationToken).ConfigureAwait(false);
                 }
             }
+            catch (RpcException ex) when (ex.StatusCode == StatusCode.Cancelled)
+            {
+                return;
+            }
+            finally
+            {
+                ActiveDataMessagesStreams.TryRemove(streamId, out _);
+            }
+            // while (!context.CancellationToken.IsCancellationRequested)
+            // {
+            //     DataMessage? dataMessage;
+            //     if (DataMessages.TryDequeue(out dataMessage))
+            //     {
+            //         await responseStream.WriteAsync(dataMessage).ConfigureAwait(false);
+            //     }
+            //     else
+            //     {
+            //         await Task.Delay(TimeSpan.FromMilliseconds(100), context.CancellationToken).ConfigureAwait(false);
+            //     }
+            // }
         }
         catch (TaskCanceledException ex)
         {
