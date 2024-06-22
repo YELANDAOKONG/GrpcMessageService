@@ -54,7 +54,7 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
         AuthorizationReply reply = new AuthorizationReply();
         reply.Random = request.Random;
         reply.Timestamp = TimeUtils.GetCurrentTimestampInMilliseconds();
-        if (_appSettings.ServerPassword.Trim().Equals(""))
+        if (_appSettings.ServerPassword == null || _appSettings.ServerPassword.Trim().Equals(""))
         {
             reply.Status = (int)HttpStatusCode.Unused;
             reply.Message = "This server does not require authentication";
@@ -71,15 +71,21 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
             reply.Message = "Password is incorrect";
             return Task.FromResult(reply);
         }
-
+        
+        // string randomToken = RandomUtils.RandomToken();
+        // bool result = AuthorizationTokens.TryAdd(randomToken, DateTime.Now);
+        // if (!result)
+        // {
+        //     reply.Status = (int)HttpStatusCode.InternalServerError;
+        //     reply.Message = "Server error";
+        //     return Task.FromResult(reply);
+        // }
+        // reply.Status = (int)HttpStatusCode.OK;
+        // reply.Arguments.Add(randomToken);
+        // reply.Message = "Authorization successful";
+        // return Task.FromResult(reply);
+        
         string randomToken = RandomUtils.RandomToken();
-        bool result = AuthorizationTokens.TryAdd(randomToken, DateTime.Now);
-        if (!result)
-        {
-            reply.Status = (int)HttpStatusCode.InternalServerError;
-            reply.Message = "Server error";
-            return Task.FromResult(reply);
-        }
         reply.Status = (int)HttpStatusCode.OK;
         reply.Arguments.Add(randomToken);
         reply.Message = "Authorization successful";
@@ -113,6 +119,29 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
     
     public override Task<CommandReply> Command(CommandRequest request, ServerCallContext context)
     {
+        if (!(_appSettings.ServerPassword == null || _appSettings.ServerPassword.Trim().Equals("")))
+        {
+            var header = context.RequestHeaders.FirstOrDefault(h => h.Key == "Authorization");
+            if (!context.RequestHeaders.Any(h => h.Key == "Authorization") || header == null)
+            {
+                return Task.FromResult(new CommandReply
+                {
+                    Status = (int)HttpStatusCode.Unauthorized,
+                    Message = "Authorization required",
+                });
+            }
+            if (!SignUtils.AuthorizationTokenSign(
+                    _appSettings.ServerPassword.Trim(),
+                    TimeUtils.GetCurrentTimestampInMilliseconds()
+                ).Equals(header.Value))
+            {
+                return Task.FromResult(new CommandReply
+                {
+                    Status = (int)HttpStatusCode.Forbidden,
+                    Message = "Authorization failed",
+                });
+            }
+        }
         CommandReply reply = new CommandReply();
         reply.Status = (int)HttpStatusCode.NoContent;
         reply.Message = "ERROR";
@@ -121,6 +150,29 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
 
     public override Task<DataCommandReply> DataCommand(DataCommandRequest request, ServerCallContext context)
     {
+        if (!(_appSettings.ServerPassword == null || _appSettings.ServerPassword.Trim().Equals("")))
+        {
+            var header = context.RequestHeaders.FirstOrDefault(h => h.Key == "Authorization");
+            if (!context.RequestHeaders.Any(h => h.Key == "Authorization") || header == null)
+            {
+                return Task.FromResult(new DataCommandReply
+                {
+                    Status = (int)HttpStatusCode.Unauthorized,
+                    Message = "Authorization required",
+                });
+            }
+            if (!SignUtils.AuthorizationTokenSign(
+                    _appSettings.ServerPassword.Trim(),
+                    TimeUtils.GetCurrentTimestampInMilliseconds()
+                ).Equals(header.Value))
+            {
+                return Task.FromResult(new DataCommandReply
+                {
+                    Status = (int)HttpStatusCode.Forbidden,
+                    Message = "Authorization failed",
+                });
+            }
+        }
         DataCommandReply reply = new DataCommandReply();
         reply.Status = (int)HttpStatusCode.NoContent;
         reply.Message = "ERROR";
@@ -129,6 +181,38 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
 
     public override Task<Result> MessagePacket(Message request, ServerCallContext context)
     {
+        if (!(_appSettings.ServerPassword == null || _appSettings.ServerPassword.Trim().Equals("")))
+        {
+            var header = context.RequestHeaders.FirstOrDefault(h => h.Key == "Authorization");
+            if (!context.RequestHeaders.Any(h => h.Key == "Authorization") || header == null)
+            {
+                return Task.FromResult(new Result
+                {
+                    Status = (int)HttpStatusCode.Unauthorized,
+                    Message = "Authorization required",
+                });
+            }
+            // if (!AuthorizationTokens.ContainsKey(header.Value))
+            // {
+            //     return Task.FromResult(new Result
+            //     {
+            //         Status = (int)HttpStatusCode.Forbidden,
+            //         Message = "Authorization failed",
+            //     });
+            // }
+            // if (!AuthorizationTokens.ContainsKey(header.Value)){return;}
+            if (!SignUtils.AuthorizationTokenSign(
+                    _appSettings.ServerPassword.Trim(),
+                    TimeUtils.GetCurrentTimestampInMilliseconds()
+                ).Equals(header.Value))
+            {
+                return Task.FromResult(new Result
+                {
+                    Status = (int)HttpStatusCode.Forbidden,
+                    Message = "Authorization failed",
+                });
+            }
+        }
         Messages.Enqueue(request);
         Result result = new Result();
         result.Status = (int)HttpStatusCode.OK;
@@ -138,6 +222,38 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
 
     public override Task<Result> DataMessagePacket(DataMessage request, ServerCallContext context)
     {
+        if (!(_appSettings.ServerPassword == null || _appSettings.ServerPassword.Trim().Equals("")))
+        {
+            var header = context.RequestHeaders.FirstOrDefault(h => h.Key == "Authorization");
+            if (!context.RequestHeaders.Any(h => h.Key == "Authorization") || header == null)
+            {
+                return Task.FromResult(new Result
+                {
+                    Status = (int)HttpStatusCode.Unauthorized,
+                    Message = "Authorization required",
+                });
+            }
+            // if (!AuthorizationTokens.ContainsKey(header.Value))
+            // {
+            //     return Task.FromResult(new Result
+            //     {
+            //         Status = (int)HttpStatusCode.Forbidden,
+            //         Message = "Authorization failed",
+            //     });
+            // }
+            // if (!AuthorizationTokens.ContainsKey(header.Value)){return;}
+            if (!SignUtils.AuthorizationTokenSign(
+                    _appSettings.ServerPassword.Trim(),
+                    TimeUtils.GetCurrentTimestampInMilliseconds()
+                ).Equals(header.Value))
+            {
+                return Task.FromResult(new Result
+                {
+                    Status = (int)HttpStatusCode.Forbidden,
+                    Message = "Authorization failed",
+                });
+            }
+        }
         DataMessages.Enqueue(request);
         Result result = new Result();
         result.Status = (int)HttpStatusCode.OK;
@@ -147,6 +263,22 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
 
     public override async Task MessageStream(Empty request, IServerStreamWriter<Message> responseStream, ServerCallContext context)
     {
+        if (!(_appSettings.ServerPassword == null || _appSettings.ServerPassword.Trim().Equals("")))
+        {
+            var header = context.RequestHeaders.FirstOrDefault(h => h.Key == "Authorization");
+            if (!context.RequestHeaders.Any(h => h.Key == "Authorization") || header == null)
+            {
+                return;
+            }
+            // if (!AuthorizationTokens.ContainsKey(header.Value)){return;}
+            if (!SignUtils.AuthorizationTokenSign(
+                    _appSettings.ServerPassword.Trim(),
+                    TimeUtils.GetCurrentTimestampInMilliseconds()
+                ).Equals(header.Value))
+            {
+                return;
+            }
+        }
         while (!context.CancellationToken.IsCancellationRequested)
         {
             Message? message;
@@ -163,6 +295,22 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
 
     public override async Task DataMessageStream(Empty request, IServerStreamWriter<DataMessage> responseStream, ServerCallContext context)
     {
+        if (!(_appSettings.ServerPassword == null || _appSettings.ServerPassword.Trim().Equals("")))
+        {
+            var header = context.RequestHeaders.FirstOrDefault(h => h.Key == "Authorization");
+            if (!context.RequestHeaders.Any(h => h.Key == "Authorization") || header == null)
+            {
+                return;
+            }
+            // if (!AuthorizationTokens.ContainsKey(header.Value)){return;}
+            if (!SignUtils.AuthorizationTokenSign(
+                    _appSettings.ServerPassword.Trim(),
+                    TimeUtils.GetCurrentTimestampInMilliseconds()
+                    ).Equals(header.Value))
+            {
+                return;
+            }
+        }
         while (!context.CancellationToken.IsCancellationRequested)
         {
             DataMessage? dataMessage;
