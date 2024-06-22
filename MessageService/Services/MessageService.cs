@@ -121,8 +121,8 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
     {
         if (!(_appSettings.ServerPassword == null || _appSettings.ServerPassword.Trim().Equals("")))
         {
-            var header = context.RequestHeaders.FirstOrDefault(h => h.Key == "Authorization");
-            if (!context.RequestHeaders.Any(h => h.Key == "Authorization") || header == null)
+            var header = context.RequestHeaders.FirstOrDefault(h => h.Key.ToLower() == "Authorization".ToLower());
+            if (!context.RequestHeaders.Any(h => h.Key.ToLower() == "Authorization".ToLower()) || header == null)
             {
                 return Task.FromResult(new CommandReply
                 {
@@ -152,8 +152,8 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
     {
         if (!(_appSettings.ServerPassword == null || _appSettings.ServerPassword.Trim().Equals("")))
         {
-            var header = context.RequestHeaders.FirstOrDefault(h => h.Key == "Authorization");
-            if (!context.RequestHeaders.Any(h => h.Key == "Authorization") || header == null)
+            var header = context.RequestHeaders.FirstOrDefault(h => h.Key.ToLower() == "Authorization".ToLower());
+            if (!context.RequestHeaders.Any(h => h.Key.ToLower() == "Authorization".ToLower()) || header == null)
             {
                 return Task.FromResult(new DataCommandReply
                 {
@@ -183,8 +183,8 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
     {
         if (!(_appSettings.ServerPassword == null || _appSettings.ServerPassword.Trim().Equals("")))
         {
-            var header = context.RequestHeaders.FirstOrDefault(h => h.Key == "Authorization");
-            if (!context.RequestHeaders.Any(h => h.Key == "Authorization") || header == null)
+            var header = context.RequestHeaders.FirstOrDefault(h => h.Key.ToLower() == "Authorization".ToLower());
+            if (!context.RequestHeaders.Any(h => h.Key.ToLower() == "Authorization".ToLower()) || header == null)
             {
                 return Task.FromResult(new Result
                 {
@@ -224,8 +224,8 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
     {
         if (!(_appSettings.ServerPassword == null || _appSettings.ServerPassword.Trim().Equals("")))
         {
-            var header = context.RequestHeaders.FirstOrDefault(h => h.Key == "Authorization");
-            if (!context.RequestHeaders.Any(h => h.Key == "Authorization") || header == null)
+            var header = context.RequestHeaders.FirstOrDefault(h => h.Key.ToLower() == "Authorization".ToLower());
+            if (!context.RequestHeaders.Any(h => h.Key.ToLower() == "Authorization".ToLower()) || header == null)
             {
                 return Task.FromResult(new Result
                 {
@@ -265,8 +265,8 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
     {
         if (!(_appSettings.ServerPassword == null || _appSettings.ServerPassword.Trim().Equals("")))
         {
-            var header = context.RequestHeaders.FirstOrDefault(h => h.Key == "Authorization");
-            if (!context.RequestHeaders.Any(h => h.Key == "Authorization") || header == null)
+            var header = context.RequestHeaders.FirstOrDefault(h => h.Key.ToLower() == "Authorization".ToLower());
+            if (!context.RequestHeaders.Any(h => h.Key.ToLower() == "Authorization".ToLower()) || header == null)
             {
                 return;
             }
@@ -297,8 +297,8 @@ public class MessageService : CommandService.CommandService.CommandServiceBase
     {
         if (!(_appSettings.ServerPassword == null || _appSettings.ServerPassword.Trim().Equals("")))
         {
-            var header = context.RequestHeaders.FirstOrDefault(h => h.Key == "Authorization");
-            if (!context.RequestHeaders.Any(h => h.Key == "Authorization") || header == null)
+            var header = context.RequestHeaders.FirstOrDefault(h => h.Key.ToLower() == "Authorization".ToLower());
+            if (!context.RequestHeaders.Any(h => h.Key.ToLower() == "Authorization".ToLower()) || header == null)
             {
                 return;
             }
